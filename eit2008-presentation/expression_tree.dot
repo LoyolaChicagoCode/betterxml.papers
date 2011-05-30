@@ -1,0 +1,9 @@
+graph sample {
+ twenty[label="20"];
+ twenty1[label="21"];
+ "+" -- twenty;
+ "+" -- twenty1;
+ "+" -- "-";
+ "-" -- 5;
+ "-" -- 4;
+}

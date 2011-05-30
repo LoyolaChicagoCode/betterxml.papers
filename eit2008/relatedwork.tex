@@ -1,0 +1,130 @@
+There is a wide range of related work, of which we attempt to describe
+the most relevant and closely related.
+
+Our work most closely overlaps with work on \emph{data binding}. In
+particular, we focus on binding XML data to application-specific data
+structures. In object-oriented programming, such data structures are
+built using (hierarchically arranged) classes. There are a number of
+efforts to address data binding as defined in this way, and we briefly
+summarize a few of these.
+
+One of the popular approaches is the JDOM (Java Document Object
+Model)~\cite{jdom}, which is effectively an implementation of the
+standard World Wide Web (W3) Consortium DOM implementation. While
+written in Java, the JDOM does not support direct binding of elements
+and attributes to classes and instance variables as done in the
+BetterXML framework. XElement supports the \emph{essence} of W3's DOM
+(while choosing not to be fully compatible) and in its default
+implementation works exactly like JDOM.  Just as JDOM builds an object
+tree of JDOM Element instances, so, too, will XElement build a tree of
+\lstinline{XElement} instances, should the programmer choose not to
+custom-map element names to classes.
+
+
+JAXB~\cite{ort:JAXB03} is a Java framework that goes from XML schemas
+to class hierarchies. BetterXML does not start at the level of
+schemas, and we presently do not support code generation from a
+schema. We take the view that code generation systems are only
+effective if the underlying framework allows the generated code to be
+modified and can pick up any subsequent changes that are made to the
+schema. The JAXB team must be well-aware of the problem as their
+latest effort includes a mechanism based on reflection and
+annotations---ideas that have been in our implementation since
+\cite{gkt:natXml04}. Nevertheless, we share a number of goals with the
+JAXB effort and will be using the framework itself to develop a code
+generator that goes from RELAX NG~\cite{relaxng} schemas to
+NaturalXML.
+
+JAXB's reflection API~\cite{jaxbReflect} is actually borrowed (almost
+wholesale) from the Microsoft .NET framework~\cite{microsoftxml},
+which makes direct use of annotations \lstinline{XmlAttribute} and
+\lstinline{XmlElement} to identify elements and attributes. As shown
+above, NaturalXML provides full support for ``all things XML'' and
+allows programmers to map namespaces and address how character data
+should be mapped to and from XML. NaturalXML also works clearly with
+classes related by inheritance. Despite its simplicity, the expression
+language from our example in Section~\ref{sec:motivation} is typical
+for the widespread use of recursion in real XML languages and the need
+to map to object oriented class hierarchies. Because most data-binding
+frameworks fail to deliver support for this most fundamental and
+common usage, many XML programmers resort to writing their own parser
+\emph{handlers} using SAX to avoid the headaches. We believe our
+framework is among the first to support recursive mapping properly.
+
+Our work on an XML Intermediate Representation (XIR) is partially
+covered by the SGML/ESIS (Element Structure, Information Set) work of
+James Clark~\cite{sgml-esis}, which aims to have a non-SGML
+formulation of any SGML document.  SGML is a predecessor to XML that
+fundamentally differed in its lack of support for namespaces and its
+more ambiguous structure. It was also hard to parse correctly because
+closing an element was optional (much the same as in HTML version 4
+and earlier). The Pyxie framework~\cite{pyxie} was an attempt to
+resurrect many of ESIS ideas in XML but does not appear to be an
+actively maintained effort. In addition, XIR goes well beyond the
+ideas by supporting all XML features and ensuring that they are
+encoded losslessly. Our ability to encode record fields in verbatim or
+Base64 mode is a competitive advantage and allows us to guarantee that
+character data and international text are encoded in a truly printable
+and portable format. All told, we consider ESIS and Pyxie as important
+inspiration; our work is a refinement that we believe makes it
+possible to embed XML in any programming environment, especially when
+the full power of an XML parser is neither desired nor needed.
+
+% KL: "replayed multiple times" sounds like a pull model
+% so how closely related is it to StAX?!? 
+% http://en.wikipedia.org/wiki/StAX
+
+It must be said that SAX (Simple API for XML Processing) is a
+significant inspiration for our work. SAX by its nature focuses on the
+essence of XML parsing and fulfills many of the same goals as a front
+end does for a language compiler. SAX influenced our ideas on XIR,
+which can be thought of as a record-oriented format that supports the
+SAX event stream. The only difference is that (unlike SAX) XIR allows
+the events to be replayed multiple times if necessary. Furthermore,
+because XIR can itself be generated, we envision a day when many
+applications could be written with XML \emph{in mind} but not
+necessarily \emph{in sight}.  While our benchmarking efforts and
+optimization are still under way, XIR requires fewer resources to
+process than most XML parsers, and the stateless design makes it an
+ideal match for distributed systems, which are increasingly relying
+upon XML/RPC schemes. While beyond the scope of the present work, XIR
+can stand alone as a separate serialization/deserialization system
+to build a robust and efficient RPC system with all of the benefits of
+full \mbox{XML/RPC} minus the significant overhead of building temporary data
+structures.
+
+Another library for serialization of Java objects to XML and back
+designed with simplicity and ease of use in mind is
+XStream~\cite{xstream}. XStream uses reflection to map Java classes to
+XML elements automatically; in addition, it supports aliases and other
+custom mappings, as well as annotations. Nevertheless, the crucial
+difference between serialization libraries such XStream and more
+general data binding frameworks, including BetterXML, is the ability
+of the latter to start with existing XML documents as opposed to a
+Java class hierarchy.
+
+We have presented an earlier version of this work in a non
+peer-reviewed department column on scientific
+programming~\cite{gkt:natXml04}, where we presented an overview of the
+use of reflection and POJOs (plain old Java objects). Our work here is
+a synthesis of many frameworks and is part of an evolving vision to
+build one of the most intuitive and efficient XML processing systems.
+
+Finally, we know that the world is beginning to question how and when
+XML should be used. YAML~\cite{yaml} is an approach that builds on the
+notion of \emph{property files} and is as simple to parse as XIR. We
+believe this model is mostly equivalent to XML but lacks support for
+\emph{schemas}, which we believe will ultimately limit its success in
+serious application development.  JavaScript Object Notation
+(JSON)~\cite{json} is also gaining popularity in the new world of web
+development (affectionately known as Web 2.0). It is used primarily in
+handling \lstinline{XmlHttpRequest()} calls but is used widely for
+initializing state for plugins and other JavaScript data
+structures. While we believe JSON to be a good approach for this
+purpose, the inability to do meaningful type checking and schema
+validation will ultimately limit its use outside of web
+applications. We mention these alternatives to make it clear that
+there are alternatives to XML that, while tempting, are not as
+robust. We are hoping our work will allow developers to reconsider
+XML. When done right, XML can be lightweight and straightforward as
+these competing approaches.

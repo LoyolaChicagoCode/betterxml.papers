@@ -1,0 +1,182 @@
+\usepackage{fullpage}
+
+\usepackage{listings}
+\lstset{language=Java,
+        basicstyle=\small}
+
+\usepackage{graphicx}
+\usepackage{hyperref}
+
+\hypersetup{
+  colorlinks=true,
+  urlcolor=blue,
+  linkcolor=black,
+  pdftitle={NaturalXML},
+  pdfauthor={Matt Bone and George Thiruvathukal}
+}
+
+\title{NaturalXML: Class Metadata for XML Serialization}
+\author{Matt Bone and George Thiruvathukal}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+NaturalXML is a framework for manipulating XML in object oriented
+programming languages.  Regular classes are simply marked up with
+metadata that specifies how the class is to be serialized to, and
+inflated from XML.  Objects are manipulated as usual, using the
+language's collections classes.  The reference implemenetation
+discussed in this paper is in Java, and the metadata is expressed via
+class and field annotations.
+\end{abstract}
+
+\tableofcontents
+
+\pagebreak
+
+%\setlength{\parskip}{.25cm}
+\bibliographystyle{abbrvnat}
+
+\section{Motivation}
+\subsection{XML for ad-hoc data formats}
+XML originally as stream of characters interupted with markup, now as
+a way of structuring stream of characters. %citation here?
+However, many use XML not as markup, but rather as a data format.
+While this frees the programmer from writing his or her own parser,
+tradition XML tools are not adequate to meet this need.  DOM differes
+greatly from the traditonal object model, and may be too heavy
+weight. There is often need to implment an adapter between the DOM
+objects and the natie data objects.  SAX, however, is often too
+lightweight, and often forces the programmer to write his or her own
+pushdown, the problem the programmer was initially trying to avoid.
+NaturalXML offers an alternative
+
+
+\section{Just Use Your Objects}
+Unlike DOM or SAX, NaturalXML just lets you annotate and use your
+existing data classes (or model, or business objects, etc).  You
+simply write the classes as you would for a non-persistent
+application, and then annotate your classes.  The annotations contain
+the information about how the object will be represented in xml.
+Besides these annotations, the data objects have no reliance on
+outside code (i.e. they do not need to extend a particular class
+or implement a particular interface).
+
+The generated xml not for human consumption, and if you take input in, and
+generate xml, you aren't guarenteed the same xml on the out.  Though the 
+content will be preserved (i.e. you get the equivalent objects if you 
+inflate from the same XML) the ordering of the elements is not.
+
+As an example, consider the xml shown in listing \ref{alg:xml}.  With
+the classeses and the annotations shown in listings \ref{alg:friends},
+\ref{alg:friend}, and \ref{alg:foe} it is simple to create instances
+of these classes from the xml and, in turn, generate the xml from these 
+instances (show how to do this).
+
+\begin{lstlisting}[float,caption={Friends, Friend and Foe in XML.},label=alg:xml,captionpos=b, frame=single, frameround=tttt]
+<Friends>
+   <Friend nick_name="george" number="773-555-1234">
+    George K. Thiruvathukal
+   </Friend>
+   <Foe nick_name="matt" number="701-555-1111">
+    Matt Bone
+   </Foe>
+</Friends>
+\end{lstlisting}
+
+\section{Implementation}
+\noindent TODO:
+\begin{enumerate}
+ \item Reflection
+ \item java beans specification discussion
+\end{enumerate}
+
+\section{Future Work}
+\noindent TODO:
+\begin{enumerate}
+  \item Simple schema language, a domain specific language
+  \item optional ordering of elements if objects implement an interface.
+\end{enumerate}
+
+\noindent This is a stub with a citation\cite{fowler03:peaa}
+
+\begin{lstlisting}[float,caption={Friends class.},label=alg:friends,captionpos=b, frame=single, frameround=tttt]
+  public class Friends {
+
+    @Children(Friend.class)
+    private ArrayList<Friend> friends = new ArrayList<Friend>();
+    
+    @Children(Foe.class)
+    private ArrayList<Foe> foes = new ArrayList<Foe>();
+    
+    public List<Friend> getFriends(){ return Collections.unmodifiableList(friends); }
+    public void addFriend(Friend friend) { friends.add(friend); }
+    
+    public List<Foe> getFoes(){ return Collections.unmodifiableList(foes); }
+    public void addFoe(Foe foe) { foes.add(foe); }
+}
+\end{lstlisting}
+
+\begin{lstlisting}[float,caption={Friend class.},label=alg:friend,captionpos=b, frame=single, frameround=tttt]
+  @Element(name="Friend")
+  public class Friend {
+
+    @CData 
+    private List<CDataWrap> name = new ArrayList<CDataWrap>();
+
+    @Attribute("nick_name") 
+    private String nickname;    
+
+    @Attribute("number") 
+    private String telephone;
+    
+    public List<CDataWrap> getName() { return Collections.unmodifiableList(name); }
+    public void addName(String name) { this.name.add(new CDataWrap(name)); }
+
+    public String getNickname() { return nickname; }
+    public void setNickname(String nickname) { this.nickname = nickname; }
+
+    public String getTelephone() { return telephone; }
+    public void setTelephone(String telephone) { this.telephone = telephone; }
+    
+  }
+\end{lstlisting}
+
+\begin{lstlisting}[float,caption={Foe class.},label=alg:foe,captionpos=b, frame=single, frameround=tttt]
+  @Element(name="Foe")
+  public class Foe { 
+
+    @CData 
+    private List<CDataWrap> name = new ArrayList<CDataWrap>();
+
+    @Attribute("nick_name") 
+    private String nickname;
+
+    @Attribute("number") 
+    private String telephone;
+    
+    public List<CDataWrap> getName() { return Collections.unmodifiableList(name); }
+    public void addName(String name) { this.name.add(new CDataWrap(name)); }
+
+    public String getNickname() { return nickname; }
+    public void setNickname(String nickname) { this.nickname = nickname; }
+
+    public String getTelephone() { return telephone; }
+    public void setTelephone(String telephone) { this.telephone = telephone; }
+  }
+\end{lstlisting}
+
+
+
+%\begin{figure}
+%  \center{\includegraphics[width=3in]{phlombay_class_diagram}}
+%  \caption{\label{fig:phlombay-model}phlombay class diagram.}
+%\end{figure}
+
+
+\bibliography{sources}
+
+\end{document}

@@ -1,0 +1,86 @@
+When processing markup in an object-oriented language, we often
+confront a large amount of accidental complexity.  Instead of dealing
+with our domain objects directly, we are forced to consider event
+streams or DOM trees.  The BetterXML framework aims to mitigate the
+situation, allowing for the processing of markup without losing focus
+on the underlying domain model. The design goals of BetterXML are ease
+of use, simplicity, flexibility, and grounding in design patterns.
+
+The BetterXML framework starts from the assumption that markup is
+inherently tree-structured.  Though this starting point may differ
+from the original intent of markup as a stream of characters
+interrupted by the occasional tag, the XML specification does not
+allow for documents without tags and requires exactly one root
+element~\cite{xmlSpec}.  Thus the specification itself is a
+recognition of this tree structure. Following this assumption,
+BetterXML represents markup in the form of an object tree, and the
+framework contributes two types of these trees, XElement and
+NaturalXML, as well as an internal event stream representation and a
+record-oriented external representation.
+
+\paragraph*{XElement} While both types of object trees retain a
+one-to-one relationship between elements and classes, XElement
+is the more DOM-like of the two.  In XElement, all classes extend a
+common base class.  This base class contains a single heterogeneous
+list of all children and a map of attributes.
+
+\paragraph*{NaturalXML} Classes in NaturalXML, on the other
+hand, need not extend a common base class.  Instead the mapping
+between elements, attributes, and child elements occurs in class
+metadata, and each class is responsible for providing its own data
+structures for children and attributes.  
+
+\paragraph*{Event streams} Both tree formats in the framework know
+nothing of the underlying markup they represent; instead, the trees
+are inflated from and serialized to an event stream.  This stream,
+though not meant for end users, is the lingua franca of the system,
+serving as an intermediary that decouples the object trees from the
+various kinds of markup the framework supports.
+
+\paragraph*{XIR} Though the framework was originally intended for XML
+processing, it is compatible with other forms of markup including its
+own representation, the XML Intermediate Representation (XIR), a
+record-oriented regular language that is easy to parse and for which
+writing a parser is trivial. XIR also serves as an external
+representation of event streams.
+
+In this paper we will discuss BetterXML as it relates to the reference
+Java implementation. The ideas of BetterXML, while closely tied to the
+object-oriented paradigm, are independent of specific object-oriented
+languages, and Python and C\#/.NET ports of the framework are in
+progress.
+
+\subsection{A Brief Example}
+Throughout this paper we will use a simple applicative calculator to
+illustrate various aspects of the BetterXML framework.  The calculator
+will support integer addition and subtraction, and we will represent
+these operations in XML.  For example, we express the computation
+$21+20+(5-4)$ as:
+
+\begin{lstlisting}
+<group>
+  <add>
+    <value value="21"/>
+    <value value="20"/>
+    <subtract>
+      <value value="5"/>
+      <value value="4"/>
+    </subtract>
+  </add>
+</group>
+\end{lstlisting}
+The computation, of course, evaluates to $42$.  If we were to represent
+this as an expression tree in an object-oriented language, we would
+most likely create a distinct class for each operation.  Each
+of these classes might share a common method, \lstinline{evaluate()}.
+Values would evaluate to themselves, and a more complex operation like
+addition would call the \lstinline{evaluate()} method on all children
+and return their sum.
+
+This example is typical of an introductory object-oriented programming
+or data structures course and is used to illuminate the ideas of
+polymorphism and recursive evaluation.  In such a setting, the example
+is valued for its conceptual clarity.  In the sections below we will
+show how the BetterXML framework can represent this problem in XML
+while using the aforementioned object model with little or no
+modification.

@@ -1,0 +1,306 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Object Trees                         %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+In this section, we discuss the two object tree formats provided by
+BetterXML in more detail.
+
+\subsection{XElement}
+Of the two tree formats in BetterXML, XElement is the more DOM-like.
+As in DOM, XElement classes must extend a common base class, and this
+base class contains the data structures and methods for manipulating
+children, attributes, and character data.  DOM, however, is not
+designed for the programmer to create element-specific or other custom
+subclasses. By contrast, XElement allows the programmer to map
+specific XML elements to one particular subclass of the common base
+class, thereby creating a domain-specific object tree.
+
+For instance, in the calculator example we map the \lstinline'add',
+\lstinline'subtract', \lstinline'group', and \lstinline'value'
+elements to the \lstinline'Add', \lstinline'Subtract',
+\lstinline'Group', and \lstinline'Value' classes respectively:
+\begin{lstlisting}
+ToXElementContentHandler handler = 
+        new ToXElementContentHandler();  
+handler.registerElementClass(Add.class, "add");
+handler.registerElementClass(Subtract.class, 
+                             "subtract");
+handler.registerElementClass(Group.class, "group");
+handler.registerElementClass(Value.class, value");  
+\end{lstlisting}
+
+Here, \lstinline'handler' is a reference to the event handler for the
+BetterXML event stream (see section \ref{streams}), and this handler
+is used to establish the mappings from element names to classes prior
+to parsing a document. When the document is parsed and an element is
+encountered, the mappings are examined.  If the element is mapped to a
+particular class, then that class is instantiated.  Otherwise, the
+base class, \lstinline'XElement', is instantiated.
+
+Since all unmapped elements are represented as instances of 
+\lstinline'XElement', the mappings from element names to classes
+are optional.  Thus, smaller applications that lack a rich
+domain model can rely directly on instances of \lstinline'XElement'.
+The \lstinline'XElement' class itself is straightforward and has
+methods for extracting the element name, attributes, and
+children. Some methods of this class are excerpted below. (The
+\lstinline'XAttributes' class represents the attributes of an element
+as a map.)
+\begin{lstlisting}
+String getName() //element name
+String setName(String name) 
+XAttributes getAttributes()
+List<XElement> getChildrenElements()
+List<XElement> getChildrenElements(String elemName)
+\end{lstlisting}
+
+We can see the methods that allow us to get at the children elements
+in action by examining \lstinline{evaluate()} in the
+\lstinline'Add' class:
+\begin{lstlisting} 
+public class Add extends XElement
+    implements Expression {
+  public int evaluate(){
+    int result=0;
+    for(XElement elem: super.getChildrenElements()){
+      if (elem instanceof Expression){
+        result += ((Expression) elem).evaluate();
+      }
+    }
+    return result;
+  }
+}
+\end{lstlisting} 
+
+This method iterates through each child element and casts each
+reference to an \lstinline'Expression', an interface that requires the
+\lstinline'evaluate()' method and is implemented by all calculator
+classes.  Here we know ahead of time that we have mapped all elements
+in the XML document to classes implementing this interface, so the
+type cast will not fail.  Nevertheless, this approach can lead to
+problems if we do not know all of the elements in the XML document
+when we perform the compile-time mapping.  If this is the case, there
+must be explicit checks or appropriate exception handling if the
+parsing is to run to completion.
+
+The actual parsing of the XML document and retrieval of the object
+tree is facilitated by a utility class:
+\begin{lstlisting}
+Reader reader = new FileReader("expressions.xml");
+XDocument document = 
+    ParserUtil.getXElementFromXml(reader, handler);
+Expression expr = 
+    (Expression) document.getRootElement();  
+\end{lstlisting}
+This \lstinline{getXElementFromXml} method accepts the previously
+mentioned event handler (which contains mapping information), and a
+Java \lstinline{Reader} (implementations of which can read from files,
+strings, etc). The returned \lstinline{XDocument} reference wraps the
+object tree, and the root can be requested and type-cast if necessary.
+
+\subsection{NaturalXML}
+Unlike DOM or XElement, NaturalXML does not require objects to extend
+a common base class.  Instead, objects are written as usual, with
+their own class hierarchy if necessary, and metadata embedded within
+the class describes the relationship to the markup.  In the reference
+Java implementation, this metadata is implemented with field and class 
+annotations.
+
+Returning to the calculator example, the \lstinline'Add' class in
+NaturalXML is expressed as follows:
+\begin{lstlisting}
+@Element("add")
+public class Add extends ContainsExpressionList {
+  public int evaluate() {
+    int sum = 0;
+    for(Expression expr: super.expressions) {
+      sum += expr.evaluate();
+    }
+    return sum;
+  }
+}
+\end{lstlisting}
+Recalling that there is a one-to-one relationship between classes and
+elements, we see that that the \lstinline{@Element} annotation on the
+class itself specifies this mapping.  Thus when a document is parsed
+the \lstinline'Add' class will be instantiated whenever an
+\lstinline'add' element is encountered.  The logic in the
+\lstinline'evaluate' method is the same as in the XElement version,
+but there are no type casts.  This is the because the
+\lstinline'expressions' instance variable is declared in the
+superclass with extra type information (via generics) that makes the
+casts unnecessary.  This super class is not part of the framework.
+Rather, it contains the code common to all operations in the
+calculator example.  Looking at the abstract super class:
+
+\begin{lstlisting}
+public abstract class ContainsExpressionList 
+     implements Expression {
+	
+  @Children({Group.class, Add.class, 
+             Subtract.class, Value.class})
+  protected List<Expression> expressions = 
+      new ArrayList<Expression>();
+  
+  public List<Expression> getExpressions() {
+    return expressions;
+  }
+  
+  public void addExpression(Expression expr) {
+    expressions.add(expr);
+  }
+}   
+\end{lstlisting}
+
+We can see this extra type information and the annotation on the
+\lstinline{expressions} field.  Elements mapped to the classes listed
+in the \lstinline'@Children' annotation are all stored in the list,
+and the type of the list specifies that each of these classes must
+also be an \lstinline'Expression'.  In the current version of
+NaturalXML this check is delayed until run time, but annotations can
+be examined at compile time, and this is one possible area of future
+improvement. Still, this approach is not only safer but also more
+concise.
+
+\subsubsection{Annotations}
+Six annotations form the basis of the NaturalXML system, providing the
+mechanism for binding elements to classes and fields to attributes, 
+child elements, and character data.  Each
+annotation is discussed below in detail:
+
+\vspace*{0.5em}
+\noindent\lstinline{@Element("element_name")}\\
+This is the only class-level annotation in the framework, and it
+defines the one-to-one mapping between classes and element names.  This
+element name is the annotation's only parameter and is required.
+
+\vspace*{0.5em}
+\noindent\lstinline!@Children({SubElement1.class, SubElement2.class})!\\ 
+This field-level annotation describes an instance variable that is
+usually a collection of references to child element data
+(i.e. instances of the classes in the annotation's parameter list).
+Each class in the annotation's parameter list must contain an
+\lstinline'@Element' annotation and is thus  mapped to some markup
+element.  
+The object hierarchy mimics the element hierarchy; when the elements
+mapped to the classes in the parameter list are encountered (as 
+sub-elements of the element to which the enclosing class is mapped) 
+they are instantiated and populated.  The mutator for the field
+is then called with this inflated sub-element object as a parameter.
+The type of the field being
+described is not important (but usually a subclass of
+\lstinline{java.util.Collection}). 
+NaturalXML uses the name of the
+field to locate the appropriate accessor and mutator methods via
+reflection.  The name of the accessor follows the Java Beans
+specification~\cite{javaBeans}.  For example, with a field named
+\lstinline'children', NaturalXML looks for an accessor named
+\lstinline'getChildren()'.  The name of the mutator is the singular
+form of the field name prepended with ``add''; with this same field,
+NaturalXML looks for the mutator \lstinline'addChild(...)'.  A port of
+the Ruby on Rails Inflector~\cite{inflector} provides the
+singularization capability.
+
+\vspace*{0.5em}
+\noindent\lstinline!@Singleton!\\
+This field-level annotation may occur only on elements already
+annotated with \lstinline!@Children!.  It signifies that one and only
+one child is expected and should annotate a reference to that child as
+opposed to a collection (as in a standard \lstinline!@Children!
+annotation).  Both the accessor and mutator (i.e. ``get'' and ``set'' methods)
+are then discovered as per the Java Beans specification
+~\cite{javaBeans}.
+
+\vspace*{0.5em}
+\noindent\lstinline!@Attribute("attribute_name")!\\
+This field-level annotation describes instance variables of type
+\lstinline'String'.  This field contains the value of the attribute specified in the parameter. Both the accessor and
+mutator are then discovered as per the Java Beans
+specification~\cite{javaBeans}.
+
+\vspace*{0.5em}
+\noindent\lstinline{@CData}\\
+This field-level annotation describes a instance variables of type
+\lstinline'List<CDataWrap>' and contains the character data of the
+element mapped to the enclosing class.  Elements with character data
+may provide only one field with this annotation.  The
+\lstinline'CDataWrap' class is a string wrapper provided for
+convenience with methods such as reducing a list
+of \lstinline'CDataWrap' instances to one string.  It also provides a hook for
+future expansion.
+
+\vspace*{0.5em}
+\noindent\lstinline{@Namespace("http://namespace.uri")}\\
+This annotation is applied at the class or field level to specify
+a namespace for elements or attributes.  It cannot stand alone.
+
+\subsubsection{Usage}
+The NaturalXML object tree is ideally suited to situations where the
+underlying data model \emph{or} the underlying markup may change
+frequently.  This may occur, for example, in exploratory programming,
+prototyping, or the creation of ad-hoc data formats.  Similarly,
+NaturalXML is useful when an existing data model needs to be expressed
+in markup.  As shown in the calculator example, the changes are
+simple, requiring little more than the insertion of the appropriate
+annotations into an existing class hierarchy.
+
+  Notice, however, that some of the burden does fall on the programmer
+in NaturalXML; every piece of the markup must be represented in some
+data structure lest it not be preserved.  In situations where the
+programmer is only in interested in manipulating a small subset of
+the data stored in the markup, this can be tedious and XElement would
+be the preferable tree format.
+
+\subsubsection{Limitations}
+A limitation of NaturalXML in its current form is its inability to
+retain ordering information among interspersed elements that are
+mapped to different data structures.  As an example, consider the XML
+fragment:
+\begin{lstlisting} 
+<root>
+  <a num="1"/>
+  <b num="2"/>
+  <a num="3"/>
+</root>
+\end{lstlisting}
+
+Assume we map the \lstinline{root} element to the \lstinline{Root}
+class, the \lstinline{b} element to the \lstinline{B} class, and the
+\lstinline{a} element to the \lstinline{A} class.  If in the
+\lstinline{Root} class we store instances of \lstinline{A} and
+\lstinline{B} in distinct lists:
+
+\begin{lstlisting}
+@Element("root")
+public class Root {
+  @Children(A.class)
+  List<A> aList;
+
+  @Children(B.class)
+  List<B> bList;
+}
+\end{lstlisting}
+Then the ordering of the \lstinline{a} elements relative to the
+\lstinline{b} elements will not be preserved. That is, all the
+\lstinline{a} elements will be printed before the \lstinline{b}
+elements. If we were to output the NaturalXML tree to XML we would get:
+\begin{lstlisting} 
+<root>
+  <a num="1"/>
+  <a num="3"/>
+  <b num="2"/>
+</root>
+\end{lstlisting}
+
+While all element, attribute, and character data information is preserved, the
+ordering information of elements mapped to different data structures
+is not.  While this limitation is usually not an issue for the ad-hoc
+data formats to which NaturalXML is ideally suited, %more elaboration
+                                %here???
+the limitation does make it difficult to represent documents like HTML
+where such ordering information is often necessary and one would like
+to store instances of the objects mapped to these elements in
+disparate data structures.  If this is a requirement, it may be best
+to use XElement, but we plan to alleviate this problem in the near
+future by using an order-preserving map implementation for the
+children.

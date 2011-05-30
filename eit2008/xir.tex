@@ -1,0 +1,72 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% XIR                                  %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+The XML Intermediate Representation (XIR) provides a structured
+intermediate form of an XML document's content for efficient streaming
+and other types of data exchange. XIR also serves as an externalized
+representation of a document's BetterXML event stream discussed in
+Section~\ref{streams}.
+
+While XIR aims to be somewhat human readable, the important
+distinction is that the format is not tree-structured but rather a
+record-oriented regular language. Therefore, even though the resulting
+linear representation appears less concise than the corresponding XML
+tree, XIR is fast to process and interpret (similar to the byte-code
+concept found in Java and elsewhere). The simplicity of the format
+also makes the implementation of parsers trivial; it requires nothing
+more than the ability to read colon-delimited text and the encoding
+and decoding of Base64 data. Thus the format can be easily ported to
+any language or platform.
+
+As an example, consider the XML fragment below:
+\begin{lstlisting}
+<value value="5">some cdata</value>
+\end{lstlisting}
+This fragment is encoded in XIR as:
+\begin{lstlisting}
+xir.type:verbatim=element
+ns:verbatim=
+xir.subtype:verbatim=begin
+qname:verbatim=value
+name:verbatim=value
+attributes:verbatim=1
+
+xir.type:verbatim=attribute
+ns:verbatim=
+xir.subtype:verbatim=none
+qname:verbatim=value
+name:verbatim=value
+value:verbatim=5
+
+xir.type:verbatim=characters
+cdata:base64=c29tZSBjZGF0YQ==
+xir.subtype:verbatim=none
+length:verbatim=10
+
+xir.type:verbatim=element
+ns:verbatim=
+xir.subtype:verbatim=end
+qname:verbatim=value
+name:verbatim=value
+\end{lstlisting}
+The start of the element, its attribute, the character data, and the
+end of the element are represented as distinct records.  Some records
+(i.e. those representing elements or prefix mappings) have a beginning
+and end so as to nest other records inside their scope. Others (i.e
+attributes, whitespace and cdata) are ``singletons'' with no nested
+scope. This behavior is specified in the \lstinline{xir.subtype}
+field.  
+
+Notice also that each field is contains a ``verbatim'' or ``base64''
+identifier which specifies whether or not the value of the field is
+encoded as plain text or in Base64.  In general, only character data
+is encoded in Base64; this allows for compactness and maintains the
+record-oriented format and ease of parsing by suppressing (but
+losslessly retaining) newlines and whitespace. Ordering of fields
+within a record is not specified nor should it be relied upon as the
+fields are usually represented in memory by an unordered data
+structure such as a hash table.
+
+%\subsection{Performance}
+%XIR Performance numbers coming soon...

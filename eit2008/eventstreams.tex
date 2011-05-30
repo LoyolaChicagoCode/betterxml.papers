@@ -1,0 +1,65 @@
+Both of the object trees discussed in Section~\ref{sec:ootrees} are
+unaware of the underlying markup.  Rather, NaturalXML and XElement
+trees are created from a stream of events.  Likewise, each is
+serialized to the same stream of events.  This approach decouples the
+tree formats from the various input and output formats, much like
+intermediate representations decouple the front end of a compiler from
+the back end. As in the compiler world where $n$ front ends and $m$
+back ends lead to $n*m$ possible configurations, the same holds in the
+BetterXML framework for tree and markup formats.
+
+%include comparison and contrast with SAX here
+
+Internally, the event stream is a sequence of method calls and can be
+externalized using the XML Intermediate Representation described in
+Section~\ref{sec:xir}.  On the input side, each tree format provides
+an implementation of the the \lstinline{BetterXmlContentHandler}
+interface (all methods are \lstinline{public}):
+
+\begin{lstlisting}
+void startDocument()
+void endDocument()
+void startPrefixMapping(String prefix, String uri)
+void endPrefixMapping(String prefix)
+void startElement(String uri, String name, 
+        String qname, int attrCount)
+void endElement(String uri, String name, 
+        String qname)
+void attribute(String uri, String name, 
+        String qname, String value)
+void characters(int length, String cdata)
+void whitespace(int length, String cdata)
+void skippedEntity(String name)
+void processingInstruction(String name, 
+        String target)
+\end{lstlisting}
+
+For example, the \lstinline'NaturalXmlContentHandler' is an
+implementation of this interface and creates a NaturalXML object tree.
+When the \lstinline'startElement()' method is called, an instance of
+the appropriate class (i.e. the class mapped to that element name) is
+created and pushed onto a stack.  Future method calls adding children,
+attributes, or character data are then able to find the parent class
+by looking at the top of the stack.  After processing, the handler
+provides a method to retrieve the root of the NaturalXML object tree,
+which sits at the bottom of the stack.
+
+Both tree formats are serialized to this same event stream.  In
+XElement, the logic is embedded within the base class via the
+\lstinline{acceptContentHandler()} method.  This implementation of the
+visitor pattern~\cite{gangOf4} lets the tree accept and
+serialize itself to any implementation of the aforementioned
+\lstinline{BetterXmlContentHandler} interface.  NaturalXML trees are
+serialized by traversing the tree externally with simple recursive method
+that takes the tree and a handler as a parameter.  This approach is necessary as
+users of NaturalXML should not be expected to embed traversal logic in
+their objects.
+
+In practice, the \lstinline'ToXMLContentHandler', which generates an
+XML document from an event stream, is the most common event handler
+for serialization.  However, we can hand any handler to the traversal
+logic, and the flexibility allows us to generate other markup such as
+XIR or do more unusual things such as generating another object tree
+or a SAX event stream.
+
+
